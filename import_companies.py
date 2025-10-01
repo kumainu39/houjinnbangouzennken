@@ -342,8 +342,19 @@ MEIREI_COLUMNS: Sequence[ColumnDefinition] = (
     ),
 )
 
+LEGACY_COLUMNS: Sequence[ColumnDefinition] = (
+    ColumnDefinition(
+        csv_field="name",
+        db_column="company_name",
+        pg_type="TEXT",
+        description="Legacy column replicating 命令規則別表 項13 for backward compatibility",
+        aliases=("company_name",),
+    ),
+)
+ALL_COLUMNS: Sequence[ColumnDefinition] = LEGACY_COLUMNS + MEIREI_COLUMNS
+
 COLUMN_NAME_LOOKUP: dict[str, str] = {}
-for column in MEIREI_COLUMNS:
+for column in ALL_COLUMNS:
     for alias in (column.csv_field, *column.aliases):
         COLUMN_NAME_LOOKUP[alias] = column.csv_field
         COLUMN_NAME_LOOKUP[alias.lower()] = column.csv_field
@@ -657,17 +668,17 @@ def main() -> None:
         raise SystemExit(1) from exc
 
     try:
-        ensure_table(conn, args.table, MEIREI_COLUMNS)
+        ensure_table(conn, args.table, ALL_COLUMNS)
         rows = read_rows(args.csv_path)
         records = prepare_records(
             rows,
-            MEIREI_COLUMNS,
+            ALL_COLUMNS,
             type_column=args.general_type_column,
             type_codes=args.general_type_codes,
             corporate_number_column=args.corporate_number_column,
             name_column=args.name_column,
         )
-        total = insert_records(conn, args.table, MEIREI_COLUMNS, records, args.batch_size)
+        total = insert_records(conn, args.table, ALL_COLUMNS, records, args.batch_size)
         LOGGER.info("Upserted %d general corporation records.", total)
     finally:
         conn.close()
